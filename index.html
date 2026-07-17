@@ -279,7 +279,6 @@
                 <label for="description">ชื่อรายการ</label>
                 <input type="text" id="description" list="items-suggestion" placeholder="เช่น เงินเดือน, ค่าเติมน้ำมัน" required autocomplete="off">
                 
-                <!-- 💡 ลิสรายการแนะนำที่อัปเดตใหม่ -->
                 <datalist id="items-suggestion">
                     <option value="รายได้วันนี้">
                     <option value="ค่าน้ำมัน">
@@ -348,7 +347,8 @@
 </div>
 
 <script>
-    let transactions = [];
+    // 💡 ปรับให้ระบบโหลดข้อมูลเก่าที่เคยเซฟไว้ในเครื่องขึ้นมาทำงานเป็นค่าเริ่มต้น
+    let transactions = JSON.parse(localStorage.getItem('money_tracker_data')) || [];
     let calendarDate = new Date();
     let selectedDateStr = new Date().toISOString().split('T')[0];
 
@@ -365,6 +365,11 @@
         updateTopSummary();
         renderCalendar();
         renderList();
+    }
+
+    // 💡 ฟังก์ชันสั่งเซฟข้อมูลลง Storage ของเครื่องแบบถาวร
+    function saveToLocalStorage() {
+        localStorage.setItem('money_tracker_data', JSON.stringify(transactions));
     }
 
     function displayCurrentDate() {
@@ -561,6 +566,7 @@
             transactions.push(newTransaction);
         }
 
+        saveToLocalStorage(); // 💡 เซฟลงเครื่องถาวรทันทีหลังเพิ่ม/แก้ไขรายการ
         resetForm();
         updateTopSummary();
         renderCalendar();
@@ -590,6 +596,7 @@
             if (editIdInput.value == id) {
                 resetForm();
             }
+            saveToLocalStorage(); // 💡 เซฟลงเครื่องถาวรทันทีหลังลบรายการ
             updateTopSummary();
             renderCalendar();
             renderList();
@@ -640,6 +647,7 @@
                 const match = content.match(/DATA_START_(.*?)_DATA_END/);
                 if (match && match[1]) {
                     transactions = JSON.parse(decodeURIComponent(escape(atob(match[1]))));
+                    saveToLocalStorage(); // 💡 เมื่อนำเข้าข้อมูลจากไฟล์ Excel แล้ว ให้สั่งเซฟลงความจำถาวรของเครื่องทันที
                     updateTopSummary();
                     renderCalendar();
                     renderList();
