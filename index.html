@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบันทึกรายรับ-รายจ่ายปฏิทินอัจฉริยะ</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #fef1f2 0%, #fff5f5 50%, #f0fdf4 100%);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.95);
+            min-height: 100vh;
+            padding: 25px 20px 90px 20px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(255, 183, 178, 0.15);
+            backdrop-filter: blur(10px);
+        }
+
+        h2 {
+            text-align: center;
+            color: #ff7b7b;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .current-date {
+            text-align: center;
+            color: #8a9ba8;
+            font-size: 13px;
+            margin-bottom: 25px;
+            font-weight: 500;
+        }
+
+        /* 📊 ตารางสรุปยอดแยกช่วงเวลา */
+        .summary-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-bottom: 25px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(255, 183, 178, 0.1);
+            border: 1px solid #ffe3e2;
+        }
+        .summary-table th, .summary-table td {
+            padding: 12px 10px;
+            text-align: center;
+            border-bottom: 1px solid #ffe3e2;
+            border-right: 1px solid #ffe3e2;
+        }
+        .summary-table th:last-child, .summary-table td:last-child {
+            border-right: none;
+        }
+        .summary-table tr:last-child td {
+            border-bottom: none;
+        }
+        .summary-table th {
+            background-color: #ffe5e3;
+            color: #ff6b6b;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .summary-table td {
+            background-color: #fff;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        .summary-table td:first-child {
+            color: #6d7c8c;
+            font-weight: 600;
+            background-color: #fffaf9;
+        }
+        .text-income { color: #2bb673; }
+        .text-expense { color: #ff6b6b; }
+        .text-balance { color: #4a5568; }
+
+        /* 🗓️ สไตล์ปฏิทิน */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0 15px 0;
+        }
+        .calendar-header h3 { 
+            margin: 0; 
+            font-size: 18px; 
+            color: #ff6b6b; 
+            font-weight: bold;
+        }
+        .btn-nav-month {
+            background: #ffb7b2;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            transition: 0.2s;
+            box-shadow: 0 3px 10px rgba(255, 183, 178, 0.3);
+        }
+        .btn-nav-month:hover { background: #ff9e99; transform: translateY(-1px); }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin-bottom: 25px;
+        }
+        .weekday-label {
+            font-weight: bold;
+            font-size: 13px;
+            color: #ffb7b2;
+            text-align: center;
+            padding: 5px 0;
+        }
+        .calendar-day {
+            background: #fff;
+            border: 1px solid #fff0ef;
+            border-radius: 10px;
+            min-height: 58px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 5px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(255, 183, 178, 0.05);
+        }
+        .calendar-day:hover { background-color: #fff5f5; transform: scale(1.03); }
+        .calendar-day .day-num {
+            font-size: 12px;
+            font-weight: bold;
+            color: #657786;
+            align-self: flex-start;
+        }
+        .calendar-day .day-amounts {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        .calendar-day .day-inc { font-size: 8px; color: #2bb673; font-weight: bold; }
+        .calendar-day .day-exp { font-size: 8px; color: #ff6b6b; font-weight: bold; }
+        
+        .calendar-day.day-has-income { background-color: #f0fdf4; border-color: #c2f3d6; }
+        .calendar-day.day-has-expense { background-color: #fff5f5; border-color: #ffe3e2; }
+        .calendar-day.empty { background: transparent; border: none; cursor: default; box-shadow: none; }
+        .calendar-day.empty:hover { background: transparent; transform: none; }
+        .calendar-day.selected { border: 2px solid #ffb7b2; background-color: #fff0ef; }
+
+        /* 📜 รายการประวัติรายวัน */
+        .history-section-title {
+            font-size: 17px;
+            font-weight: bold;
+            color: #ff6b6b;
+            margin-top: 10px;
+            margin-bottom: 15px;
+            border-bottom: 2px dashed #ffe3e2;
+            padding-bottom: 8px;
+        }
+        .history-card {
+            background: white;
+            border: 1px solid #fff0ef;
+            border-left: 5px solid #ccc;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(255, 183, 178, 0.05);
+        }
+        .card-left .card-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #334e68;
+            margin-bottom: 4px;
+        }
+        .card-left .card-time {
+            font-size: 11px;
+            color: #bcccdc;
+            font-weight: 500;
+        }
+        .card-right {
+            text-align: right;
+        }
+        .card-amount {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .card-actions {
+            display: flex;
+            gap: 5px;
+            justify-content: flex-end;
+        }
+        .card-actions button {
+            border: none;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-card-edit { background-color: #e3f2fd; color: #1e88e5; }
+        .btn-card-edit:hover { background-color: #1e88e5; color: white; }
+        .btn-card-delete { background-color: #fff5f5; color: #ff6b6b; }
+        .btn-card-delete:hover { background-color: #ff6b6b; color: white; }
+
+        /* 📝 ฟอร์มกรอกข้อมูล */
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; color: #617d98; font-size: 13px; font-weight: bold;}
+        input[type="text"], input[type="number"] {
+            width: 100%; padding: 12px; border: 1px solid #ffe3e2; border-radius: 12px; font-size: 15px; background-color: #fffaf9; transition: 0.2s;
+        }
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none; border-color: #ffb7b2; background-color: #fff; box-shadow: 0 0 8px rgba(255, 183, 178, 0.2);
+        }
+        .type-group { display: flex; gap: 12px; }
+        .type-btn { flex: 1; }
+        .type-btn input[type="radio"] { display: none; }
+        .type-btn label {
+            display: block; background: #fff; border: 2px solid #fff0ef; padding: 12px;
+            text-align: center; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; color: #829ab1;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.02);
+        }
+        #type-income:checked + label { background-color: #e8f8f0; border-color: #2bb673; color: #2bb67 green; color: #2bb673; }
+        #type-expense:checked + label { background-color: #fff5f5; border-color: #ff6b6b; color: #ff6b6b; }
+
+        .btn-submit { background-color: #ffb7b2; color: white; border: none; padding: 13px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(255, 183, 178, 0.4); }
+        .btn-submit:hover { background-color: #ff9e99; transform: translateY(-1px); }
+        .btn-cancel { background-color: #cbd5e1; color: #475569; border: none; padding: 13px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 5px; display: none; }
+        
+        .backup-zone { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            margin-top: 25px; 
+            border-top: 2px dashed #ffe3e2; 
+            padding-top: 20px; 
+        }
+        .backup-buttons { 
+            display: flex; 
+            gap: 12px; 
+        }
+        .btn-backup, .btn-import-label { 
+            flex: 1; 
+            height: 42px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px dashed #ffb7b2; 
+            background: #fffaf9; 
+            color: #ff7b7b; 
+            border-radius: 10px; 
+            font-size: 13px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin: 0;
+            padding: 0;
+            transition: 0.2s;
+        }
+        .btn-backup:hover, .btn-import-label:hover {
+            background: #ffb7b2;
+            color: white;
+            border-style: solid;
+        }
+        .btn-auto-backup-list { 
+            width: 100%; 
+            height: 38px;
+            background: #fff; 
+            border: 1px solid #ffe3e2; 
+            color: #ff9e99; 
+            border-radius: 10px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.2s;
+        }
+        .btn-auto-backup-list:hover { background-color: #fffaf9; }
+        #import-file { display: none; }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 500px;
+            height: 65px;
+            background: rgba(255, 255, 255, 0.95);
+            border-top: 1px solid #ffe3e2;
+            display: flex;
+            z-index: 100;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: #a0aec0;
+            transition: 0.2s;
+        }
+        .nav-item.active {
+            color: #ff6b6b;
+            background-color: #fff5f5;
+            position: relative;
+        }
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background-color: #ffb7b2;
+        }
+
+        .page-content { display: none; }
+        .page-content.active { display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <h2>📝 บัญชีรายรับ-รายจ่าย</h2>
+    <div id="current-date" class="current-date"></div>
+
+    <!-- 📊 ตารางสรุปยอดแยกช่วงเวลาภาพรวม -->
+    <table class="summary-table">
+        <thead>
+            <tr>
+                <th>ช่วงเวลา</th>
+                <th class="text-income">รายรับ (+)</th>
+                <th class="text-expense">รายจ่าย (-)</th>
+                <th>คงเหลือ</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>วันนี้</td>
+                <td id="today-income" class="text-income">0.00</td>
+                <td id="today-expense" class="text-expense">0.00</td>
+                <td id="today-balance" class="text-balance">0.00</td>
+            </tr>
+            <tr>
+                <td>สัปดาห์นี้</td>
+                <td id="week-income" class="text-income">0.00</td>
+                <td id="week-expense" class="text-expense">0.00</td>
+                <td id="week-balance" class="text-balance">0.00</td>
+            </tr>
+            <tr>
+                <td>เดือนนี้</td>
+                <td id="month-income" class="text-income">0.00</td>
+                <td id="month-expense" class="text-expense">0.00</td>
+                <td id="month-balance" class="text-balance">0.00</td>
+            </tr>
+            <tr>
+                <td>ทั้งหมด</td>
+                <td id="all-income" class="text-income">0.00</td>
+                <td id="all-expense" class="text-expense">0.00</td>
+                <td id="all-balance" class="text-balance">0.00</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- ================= หน้าบันทึกรายการ ================= -->
+    <div id="page-form" class="page-content active">
+        <form id="transaction-form">
+            <input type="hidden" id="edit-id">
+            
+            <div class="form-group">
+                <label for="description">ชื่อรายการ</label>
+                <input type="text" id="description" list="items-suggestion" placeholder="เช่น เงินเดือน, ค่าเติมน้ำมัน" required autocomplete="off">
+                
+                <datalist id="items-suggestion">
+                    <option value="รายได้วันนี้">
+                    <option value="ค่าน้ำมัน">
+                    <option value="ค่าอาหาร">
+                    <option value="โบนัสแฟน">
+                    <option value="ซ่อมรถ">
+                    <option value="ของใช้">
+                </datalist>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">จำนวนเงิน (บาท)</label>
+                <input type="number" id="amount" min="0.01" step="0.01" placeholder="0.00" required>
+            </div>
+            
+            <div class="form-group">
+                <label>ประเภท</label>
+                <div class="type-group">
+                    <div class="type-btn">
+                        <input type="radio" id="type-income" name="transaction-type" value="income" checked>
+                        <label for="type-income">รายรับ (+)</label>
+                    </div>
+                    <div class="type-btn">
+                        <input type="radio" id="type-expense" name="transaction-type" value="expense">
+                        <label for="type-expense">รายจ่าย (-)</label>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" id="btn-submit" class="btn-submit">บันทึกรายการ</button>
+            <button type="button" id="btn-cancel" class="btn-cancel" onclick="resetForm()">ยกเลิกการแก้ไข</button>
+
+            <div class="backup-zone">
+                <div class="backup-buttons">
+                    <button type="button" class="btn-backup" onclick="exportToXLSX()">📤 สำรองข้อมูล (.xlsx)</button>
+                    <label for="import-file" class="btn-import-label">📥 นำเข้าข้อมูล (.xlsx)</label>
+                    <input type="file" id="import-file" accept=".xlsx" onchange="importFromXLSX(event)">
+                </div>
+                <button type="button" class="btn-auto-backup-list" onclick="checkDailyBackupSlots()">🔄 เรียกดูข้อมูลสำรองออโต้ประจำวัน</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ================= หน้าประวัติปฏิทิน ================= -->
+    <div id="page-calendar" class="page-content">
+        <div class="calendar-header">
+            <button class="btn-nav-month" onclick="navigateCalendar(-1)">◀ เดือนก่อน</button>
+            <h3 id="calendar-month-year">กรกฎาคม 2569</h3>
+            <button class="btn-nav-month" onclick="navigateCalendar(1)">เดือนถัดไป ▶</button>
+        </div>
+
+        <div class="calendar-grid" id="calendar-grid">
+            <!-- วันและยอดเงินจะถูกเจนด้วย JS -->
+        </div>
+
+        <div class="history-section-title" id="history-title">
+            📜 รายการประจำวันที่: --/--/----
+        </div>
+        <div id="list-container">
+            <!-- รายการประวัติแบบ Card -->
+        </div>
+    </div>
+
+    <!-- 📱 แถบเมนูด้านล่างสุด -->
+    <div class="bottom-nav">
+        <div class="nav-item active" id="nav-form" onclick="switchPage('form')">📝 บันทึกรายการ</div>
+        <div class="nav-item" id="nav-calendar" onclick="switchPage('calendar')">📜 ประวัติปฏิทิน</div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.mini.min.js"></script>
+<script>
+    let transactions = JSON.parse(localStorage.getItem('money_tracker_data')) || [];
+    let calendarDate = new Date();
+    let selectedDateStr = new Date().toISOString().split('T')[0];
+
+    const form = document.getElementById('transaction-form');
+    const descriptionInput = document.getElementById('description');
+    const amountInput = document.getElementById('amount');
+    const editIdInput = document.getElementById('edit-id');
+    const btnSubmit = document.getElementById('btn-submit');
+    const btnCancel = document.getElementById('btn-cancel');
+    const listContainer = document.getElementById('list-container');
+
+    function init() {
+        displayCurrentDate();
+        checkAndExecuteMidnightBackup(); 
+        updateSummaryTable();
+        renderCalendar();
+        renderList();
+    }
+
+    function saveToLocalStorage() {
+        localStorage.setItem('money_tracker_data', JSON.stringify(transactions));
+    }
+
+    function checkAndExecuteMidnightBackup() {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const lastBackupDate = localStorage.getItem('last_auto_backup_date');
+
+        if (lastBackupDate !== todayStr && transactions.length > 0) {
+            let backupSlots = JSON.parse(localStorage.getItem('auto_daily_backups')) || {};
+            backupSlots[todayStr] = JSON.stringify(transactions);
+            
+            const keys = Object.keys(backupSlots);
+            if (keys.length > 7) {
+                delete backupSlots[keys[0]]; 
+            }
+
+            localStorage.setItem('auto_daily_backups', JSON.stringify(backupSlots));
+            localStorage.setItem('last_auto_backup_date', todayStr);
+        }
+    }
+
+    function checkDailyBackupSlots() {
+        let backupSlots = JSON.parse(localStorage.getItem('auto_daily_backups')) || {};
+        const keys = Object.keys(backupSlots);
+
+        if (keys.length === 0) {
+            alert('ยังไม่มีข้อมูลการสำรองรายวันอัตโนมัติในเครื่องของคุณ');
+            return;
+        }
+
+        let message = 'กรุณาพิมพ์ "วันที่" ที่ต้องการดึงข้อมูลกลับมาใช้งานต่อ:\n\n';
+        keys.forEach(date => {
+            message += `- ${date}\n`;
+        });
+
+        const targetDate = prompt(message);
+        if (targetDate && backupSlots[targetDate]) {
+            if (confirm(`คุณต้องการดึงข้อมูลของวันที่ ${targetDate} กลับมาทับรายการปัจจุบันใช่หรือไม่?`)) {
+                transactions = JSON.parse(backupSlots[targetDate]);
+                saveToLocalStorage();
+                updateSummaryTable();
+                renderCalendar();
+                renderList();
+                alert('ฟื้นฟูข้อมูลจากระบบออโต้แบ็กอัปเสร็จสิ้น!');
+            }
+        }
+    }
+
+    function displayCurrentDate() {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-date').innerText = "วันนี้คือ: " + new Date().toLocaleDateString('th-TH', options);
+    }
+
+    function switchPage(page) {
+        document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        
+        if (page === 'form') {
+            document.getElementById('page-form').classList.add('active');
+            document.getElementById('nav-form').classList.add('active');
+        } else {
+            document.getElementById('page-calendar').classList.add('active');
+            document.getElementById('nav-calendar').classList.add('active');
+        }
+        renderCalendar();
+        renderList();
+    }
+
+    function getSelectedType() {
+        return document.querySelector('input[name="transaction-type"]:checked').value;
+    }
+
+    function setSelectedType(value) {
+        document.querySelector(`input[name="transaction-type"][value="${value}"]`).checked = true;
+    }
+
+    function updateSummaryTable() {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        startOfWeek.setHours(0,0,0,0);
+        const startOfWeekTime = startOfWeek.getTime();
+
+        let summary = {
+            today: { income: 0, expense: 0 },
+            week: { income: 0, expense: 0 },
+            month: { income: 0, expense: 0 },
+            all: { income: 0, expense: 0 }
+        };
+
+        transactions.forEach(t => {
+            const tDate = new Date(t.dateString);
+            const amt = t.amount;
+            const isInc = t.type === 'income';
+
+            if (isInc) summary.all.income += amt; else summary.all.expense += amt;
+
+            if (tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear()) {
+                if (isInc) summary.month.income += amt; else summary.month.expense += amt;
+            }
+
+            if (tDate.getTime() >= startOfWeekTime) {
+                if (isInc) summary.week.income += amt; else summary.week.expense += amt;
+            }
+
+            if (tDate.getTime() >= startOfToday) {
+                if (isInc) summary.today.income += amt; else summary.today.expense += amt;
+            }
+        });
+
+        function setRowValues(prefix, data) {
+            const balance = data.income - data.expense;
+            document.getElementById(`${prefix}-income`).innerText = data.income.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById(`${prefix}-expense`).innerText = data.expense.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById(`${prefix}-balance`).innerText = balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        setRowValues('today', summary.today);
+        setRowValues('week', summary.week);
+        setRowValues('month', summary.month);
+        setRowValues('all', summary.all);
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendar-grid');
+        const monthYearText = document.getElementById('calendar-month-year');
+        grid.innerHTML = '';
+        
+        const year = calendarDate.getFullYear();
+        const month = calendarDate.getMonth();
+        
+        monthYearText.innerText = calendarDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+
+        const weekdays = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+        weekdays.forEach(w => {
+            const cell = document.createElement('div');
+            cell.classList.add('weekday-label');
+            cell.innerText = w;
+            grid.appendChild(cell);
+        });
+
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const totalDays = new Date(year, month + 1, 0).getDate();
+
+        for (let i = 0; i < firstDayIndex; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.classList.add('calendar-day', 'empty');
+            grid.appendChild(emptyCell);
+        }
+
+        for (let day = 1; day <= totalDays; day++) {
+            const cell = document.createElement('div');
+            cell.classList.add('calendar-day');
+            
+            const currentCellDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            
+            if (selectedDateStr === currentCellDateStr) {
+                cell.classList.add('selected');
+            }
+
+            let dayIncome = 0;
+            let dayExpense = 0;
+            transactions.forEach(t => {
+                if(t.dateString === currentCellDateStr) {
+                    if (t.type === 'income') dayIncome += t.amount;
+                    else dayExpense += t.amount;
+                }
+            });
+
+            if (dayIncome > 0 || dayExpense > 0) {
+                if (dayIncome >= dayExpense) cell.classList.add('day-has-income');
+                else cell.classList.add('day-has-expense');
+            }
+
+            let incomeText = dayIncome > 0 ? `<span class="day-inc">+${Math.round(dayIncome)}</span>` : '';
+            let expenseText = dayExpense > 0 ? `<span class="day-exp">-${Math.round(dayExpense)}</span>` : '';
+
+            cell.innerHTML = `
+                <span class="day-num">${day}</span>
+                <div class="day-amounts">
+                    ${incomeText}
+                    ${expenseText}
+                </div>
+            `;
+
+            cell.onclick = () => {
+                selectedDateStr = currentCellDateStr;
+                renderCalendar();
+                renderList();
+            };
+
+            grid.appendChild(cell);
+        }
+    }
+
+    function navigateCalendar(direction) {
+        calendarDate.setMonth(calendarDate.getMonth() + direction);
+        renderCalendar();
+    }
+
+    function renderList() {
+        listContainer.innerHTML = '';
+        const titleText = document.getElementById('history-title');
+
+        const [y, m, d] = selectedDateStr.split('-');
+        titleText.innerText = `📜 รายการประจำวันที่: ${parseInt(d)}/${parseInt(m)}/${parseInt(y) + 543}`;
+
+        const displayData = transactions.filter(t => t.dateString === selectedDateStr);
+
+        if(displayData.length === 0) {
+            listContainer.innerHTML = '<p style="color:#a0aec0; text-align:center; padding: 20px; font-size:14px;">ไม่มีรายการบันทึกในวันนี้</p>';
+            return;
+        }
+
+        const sortedData = [...displayData].sort((a,b) => b.id - a.id);
+
+        sortedData.forEach(t => {
+            const card = document.createElement('div');
+            card.classList.add('history-card');
+            
+            const isIncome = t.type === 'income';
+            card.style.borderLeftColor = isIncome ? '#2bb673' : '#ff6b6b';
+            const sign = isIncome ? '+' : '-';
+            const colorClass = isIncome ? 'text-income' : 'text-expense';
+
+            const [year, month, day] = t.dateString.split('-');
+            const thaiDateLabel = `${parseInt(day)}/${parseInt(month)}/${parseInt(year) + 543} ${t.timeString}`;
+
+            card.innerHTML = `
+                <div class="card-left">
+                    <div class="card-name">${t.description}</div>
+                    <div class="card-time">${thaiDateLabel}</div>
+                </div>
+                <div class="card-right">
+                    <div class="card-amount ${colorClass}">${sign}${t.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} บ.</div>
+                    <div class="card-actions">
+                        <button class="btn-card-edit" onclick="editTransaction(${t.id})">แก้ไข</button>
+                        <button class="btn-card-delete" onclick="deleteTransaction(${t.id})">ลบ</button>
+                    </div>
+                </div>
+            `;
+            listContainer.appendChild(card);
+        });
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const id = editIdInput.value;
+        const description = descriptionInput.value;
+        const type = getSelectedType();
+        const amount = parseFloat(amountInput.value);
+        
+        const now = new Date();
+        const timeStr = now.toTimeString().substring(0, 5);
+
+        if (id) {
+            const index = transactions.findIndex(t => t.id == id);
+            if (index !== -1) {
+                transactions[index].description = description;
+                transactions[index].type = type;
+                transactions[index].amount = amount;
+            }
+        } else {
+            const newTransaction = {
+                id: Date.now(),
+                description: description,
+                type: type,
+                amount: amount,
+                dateString: selectedDateStr,
+                timeString: timeStr
+            };
+            transactions.push(newTransaction);
+        }
+
+        saveToLocalStorage();
+        resetForm();
+        updateSummaryTable(); 
+        renderCalendar();
+        renderList();
+        alert('บันทึกรายการเรียบร้อยแล้ว!');
+    });
+
+    function editTransaction(id) {
+        const transaction = transactions.find(t => t.id === id);
+        if (transaction) {
+            editIdInput.value = transaction.id;
+            descriptionInput.value = transaction.description;
+            setSelectedType(transaction.type);
+            amountInput.value = transaction.amount;
+
+            btnSubmit.innerText = 'อัปเดตรายการ';
+            btnSubmit.style.backgroundColor = '#ff9800';
+            btnCancel.style.display = 'block';
+            
+            switchPage('form');
+        }
+    }
+
+    function deleteTransaction(id) {
+        if(confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
+            transactions = transactions.filter(t => t.id !== id);
+            if (editIdInput.value == id) {
+                resetForm();
+            }
+            saveToLocalStorage();
+            updateSummaryTable(); 
+            renderCalendar();
+            renderList();
+        }
+    }
+
+    /* 📤 ฟังก์ชันส่งออกเป็นไฟล์ XLSX (อัปเดต Base64 แก้ปัญหาโหลดไม่ลงในมือถือ) */
+    function exportToXLSX() {
+        if (transactions.length === 0) {
+            alert('ไม่มีข้อมูลสำหรับสำรอง');
+            return;
+        }
+
+        const dataRows = [["วันที่", "เวลา", "รายการ", "ประเภท", "จำนวนเงิน(บาท)"]];
+        transactions.forEach(t => {
+            const typeText = t.type === 'income' ? 'รายรับ' : 'รายจ่าย';
+            dataRows.push([t.dateString, t.timeString, t.description, typeText, t.amount]);
+        });
+
+        const wb = XLSX.utils.book_new();
+        const wsData = XLSX.utils.aoa_to_sheet(dataRows);
+        XLSX.utils.book_append_sheet(wb, wsData, "บันทึกรายรับรายจ่าย");
+
+        const dbBackupString = btoa(unescape(encodeURIComponent(JSON.stringify(transactions))));
+        const wsSystem = XLSX.utils.aoa_to_sheet([["BACKUP_DATA"], [dbBackupString]]);
+        XLSX.utils.book_append_sheet(wb, wsSystem, "SYSTEM_DATA");
+
+        // ใช้ Base64 แทน Blob เพื่อหลบการบล็อกของเบราว์เซอร์มือถือ
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+        const dataUri = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + wbout;
+
+        const a = document.createElement('a');
+        const now = new Date();
+        const dateStamp = now.toISOString().split('T')[0];
+        
+        a.href = dataUri;
+        a.download = `บัญชีรายรับรายจ่าย_${dateStamp}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    /* 📥 ฟังก์ชันรับไฟล์ XLSX กลับเข้ามาทำงานต่อ */
+    function importFromXLSX(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                // อ่านข้อมูลเป็น Array Buffer สำหรับ SheetJS (เสถียรที่สุด)
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                if (workbook.Sheets && workbook.Sheets["SYSTEM_DATA"]) {
+                    const wsSystem = workbook.Sheets["SYSTEM_DATA"];
+                    const cellA2 = wsSystem["A2"]; 
+                    
+                    if (cellA2 && cellA2.v) {
+                        const cleanBackupString = cellA2.v.trim();
+                        transactions = JSON.parse(decodeURIComponent(escape(atob(cleanBackupString))));
+                        saveToLocalStorage();
+                        updateSummaryTable(); 
+                        renderCalendar();
+                        renderList();
+                        alert('นำเข้าข้อมูลจากไฟล์ Excel เรียบร้อยแล้ว!');
+                        event.target.value = '';
+                        return;
+                    }
+                }
+                alert('ไฟล์นี้ไม่ใช่ไฟล์สำรองของระบบ หรือข้อมูลโครงสร้างระบบสูญหาย');
+            } catch (error) {
+                alert('เกิดข้อผิดพลาดในการอ่านไฟล์ Excel กรุณาตรวจสอบไฟล์อีกครั้ง');
+            }
+            event.target.value = '';
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function resetForm() {
+        form.reset();
+        editIdInput.value = '';
+        setSelectedType('income');
+        btnSubmit.innerText = 'บันทึกรายการ';
+        btnSubmit.style.backgroundColor = '#ffb7b2';
+        btnCancel.style.display = 'none';
+    }
+
+    init();
+</script>
+
+</body>
+</html>
