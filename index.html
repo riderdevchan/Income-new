@@ -39,28 +39,35 @@
             margin-bottom: 20px;
         }
 
-        /* 📊 ตารางสรุปยอดด้านบนสุด */
+        /* 📊 ตารางสรุปยอดแยกช่วงเวลา */
         .summary-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             border-radius: 12px;
             overflow: hidden;
-            background: #f8fafc;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border: 1px solid #edf2f7;
         }
         .summary-table th, .summary-table td {
-            padding: 12px 8px;
+            padding: 12px 10px;
             text-align: center;
             border: 1px solid #edf2f7;
         }
         .summary-table th {
+            background-color: #f8fafc;
             color: #4a5568;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .summary-table td {
+            background-color: #fff;
             font-size: 15px;
             font-weight: bold;
         }
-        .summary-table td {
-            font-size: 16px;
-            font-weight: bold;
+        .summary-table td:first-child {
+            color: #2d3748;
+            font-weight: 600;
         }
         .text-income { color: #2e7d32; }
         .text-expense { color: #c62828; }
@@ -211,8 +218,51 @@
         .btn-submit { background-color: #4caf50; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; }
         .btn-cancel { background-color: #a0aec0; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 5px; display: none; }
         
-        .backup-zone { display: flex; gap: 10px; margin-top: 20px; border-top: 1px dashed #e2e8f0; padding-top: 15px; }
-        .btn-backup, .btn-import-label { flex: 1; padding: 10px; border: 1px dashed #3182ce; background: #ebf8ff; color: #2b6cb0; border-radius: 6px; font-size: 13px; font-weight: bold; text-align: center; cursor: pointer; }
+        /* 💾 ปรับแต่งแก้ไขโซนปุ่มสำรองข้อมูลให้เท่ากัน 100% */
+        .backup-zone { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 8px; 
+            margin-top: 20px; 
+            border-top: 1px dashed #e2e8f0; 
+            padding-top: 15px; 
+        }
+        .backup-buttons { 
+            display: flex; 
+            gap: 10px; 
+        }
+        .btn-backup, .btn-import-label { 
+            flex: 1; 
+            height: 42px; /* ล็อกความสูงแน่นอนเพื่อแก้ปุ่มไม่เท่ากัน */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px dashed #3182ce; 
+            background: #ebf8ff; 
+            color: #2b6cb0; 
+            border-radius: 6px; 
+            font-size: 13px; 
+            font-weight: bold; 
+            text-align: center; 
+            cursor: pointer; 
+            margin: 0;
+            padding: 0;
+        }
+        .btn-backup:hover, .btn-import-label:hover {
+            background: #3182ce;
+            color: white;
+        }
+        .btn-auto-backup-list { 
+            width: 100%; 
+            height: 38px;
+            background: #f1f5f9; 
+            border: 1px solid #cbd5e1; 
+            color: #475569; 
+            border-radius: 6px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            cursor: pointer; 
+        }
         #import-file { display: none; }
 
         /* 📱 แถบเมนูด้านล่างสุด */
@@ -258,16 +308,42 @@
     <h2>📝 บัญชีรายรับ-รายจ่าย</h2>
     <div id="current-date" class="current-date"></div>
 
-    <!-- 📊 ตารางสรุปยอดด้านบนสุด -->
+    <!-- 📊 ตารางสรุปยอดแยกช่วงเวลา -->
     <table class="summary-table">
         <thead>
             <tr>
-                <th>ทั้งหมด</th>
-                <th class="text-income" id="top-income">0.00</th>
-                <th class="text-expense" id="top-expense">0.00</th>
-                <th id="top-balance">0.00</th>
+                <th>ช่วงเวลา</th>
+                <th class="text-income">รายรับ (+)</th>
+                <th class="text-expense">รายจ่าย (-)</th>
+                <th>คงเหลือ</th>
             </tr>
         </thead>
+        <tbody>
+            <tr>
+                <td>วันนี้</td>
+                <td id="today-income" class="text-income">0.00</td>
+                <td id="today-expense" class="text-expense">0.00</td>
+                <td id="today-balance" class="text-balance">0.00</td>
+            </tr>
+            <tr>
+                <td>สัปดาห์นี้</td>
+                <td id="week-income" class="text-income">0.00</td>
+                <td id="week-expense" class="text-expense">0.00</td>
+                <td id="week-balance" class="text-balance">0.00</td>
+            </tr>
+            <tr>
+                <td>เดือนนี้</td>
+                <td id="month-income" class="text-income">0.00</td>
+                <td id="month-expense" class="text-expense">0.00</td>
+                <td id="month-balance" class="text-balance">0.00</td>
+            </tr>
+            <tr>
+                <td>ทั้งหมด</td>
+                <td id="all-income" class="text-income">0.00</td>
+                <td id="all-expense" class="text-expense">0.00</td>
+                <td id="all-balance" class="text-balance">0.00</td>
+            </tr>
+        </tbody>
     </table>
 
     <!-- ================= หน้าบันทึกรายการ ================= -->
@@ -312,9 +388,12 @@
             <button type="button" id="btn-cancel" class="btn-cancel" onclick="resetForm()">ยกเลิกการแก้ไข</button>
 
             <div class="backup-zone">
-                <button type="button" class="btn-backup" onclick="exportToExcel()">📤 สำรองข้อมูล (.xlsx)</button>
-                <label for="import-file" class="btn-import-label">📥 นำเข้าข้อมูล (.xlsx)</label>
-                <input type="file" id="import-file" accept=".xlsx,.xls" onchange="importFromExcel(event)">
+                <div class="backup-buttons">
+                    <button type="button" class="btn-backup" onclick="exportToExcel()">📤 สำรองข้อมูล (.xlsx)</button>
+                    <label for="import-file" class="btn-import-label">📥 นำเข้าข้อมูล (.xlsx)</label>
+                    <input type="file" id="import-file" accept=".xlsx,.xls" onchange="importFromExcel(event)">
+                </div>
+                <button type="button" class="btn-auto-backup-list" onclick="checkDailyBackupSlots()">🔄 เรียกดูข้อมูลสำรองออโต้ประจำวัน</button>
             </div>
         </form>
     </div>
@@ -347,7 +426,6 @@
 </div>
 
 <script>
-    // 💡 ปรับให้ระบบโหลดข้อมูลเก่าที่เคยเซฟไว้ในเครื่องขึ้นมาทำงานเป็นค่าเริ่มต้น
     let transactions = JSON.parse(localStorage.getItem('money_tracker_data')) || [];
     let calendarDate = new Date();
     let selectedDateStr = new Date().toISOString().split('T')[0];
@@ -362,14 +440,59 @@
 
     function init() {
         displayCurrentDate();
-        updateTopSummary();
+        checkAndExecuteMidnightBackup(); 
+        updateSummaryTable();
         renderCalendar();
         renderList();
     }
 
-    // 💡 ฟังก์ชันสั่งเซฟข้อมูลลง Storage ของเครื่องแบบถาวร
     function saveToLocalStorage() {
         localStorage.setItem('money_tracker_data', JSON.stringify(transactions));
+    }
+
+    function checkAndExecuteMidnightBackup() {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const lastBackupDate = localStorage.getItem('last_auto_backup_date');
+
+        if (lastBackupDate !== todayStr && transactions.length > 0) {
+            let backupSlots = JSON.parse(localStorage.getItem('auto_daily_backups')) || {};
+            backupSlots[todayStr] = JSON.stringify(transactions);
+            
+            const keys = Object.keys(backupSlots);
+            if (keys.length > 7) {
+                delete backupSlots[keys[0]]; 
+            }
+
+            localStorage.setItem('auto_daily_backups', JSON.stringify(backupSlots));
+            localStorage.setItem('last_auto_backup_date', todayStr);
+        }
+    }
+
+    function checkDailyBackupSlots() {
+        let backupSlots = JSON.parse(localStorage.getItem('auto_daily_backups')) || {};
+        const keys = Object.keys(backupSlots);
+
+        if (keys.length === 0) {
+            alert('ยังไม่มีข้อมูลการสำรองรายวันอัตโนมัติในเครื่องของคุณ');
+            return;
+        }
+
+        let message = 'กรุณาพิมพ์ "วันที่" ที่ต้องการดึงข้อมูลกลับมาใช้งานต่อ:\n\n';
+        keys.forEach(date => {
+            message += `- ${date}\n`;
+        });
+
+        const targetDate = prompt(message);
+        if (targetDate && backupSlots[targetDate]) {
+            if (confirm(`คุณต้องการดึงข้อมูลของวันที่ ${targetDate} กลับมาทับรายการปัจจุบันใช่หรือไม่?`)) {
+                transactions = JSON.parse(backupSlots[targetDate]);
+                saveToLocalStorage();
+                updateSummaryTable();
+                renderCalendar();
+                renderList();
+                alert('ฟื้นฟูข้อมูลจากระบบออโต้แบ็กอัปเสร็จสิ้น!');
+            }
+        }
     }
 
     function displayCurrentDate() {
@@ -400,18 +523,53 @@
         document.querySelector(`input[name="transaction-type"][value="${value}"]`).checked = true;
     }
 
-    function updateTopSummary() {
-        let income = 0;
-        let expense = 0;
-        transactions.forEach(t => {
-            if (t.type === 'income') income += t.amount;
-            else expense += t.amount;
-        });
-        const balance = income - expense;
+    function updateSummaryTable() {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        startOfWeek.setHours(0,0,0,0);
+        const startOfWeekTime = startOfWeek.getTime();
 
-        document.getElementById('top-income').innerText = income.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        document.getElementById('top-expense').innerText = expense.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        document.getElementById('top-balance').innerText = balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        let summary = {
+            today: { income: 0, expense: 0 },
+            week: { income: 0, expense: 0 },
+            month: { income: 0, expense: 0 },
+            all: { income: 0, expense: 0 }
+        };
+
+        transactions.forEach(t => {
+            const tDate = new Date(t.dateString);
+            const amt = t.amount;
+            const isInc = t.type === 'income';
+
+            if (isInc) summary.all.income += amt; else summary.all.expense += amt;
+
+            if (tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear()) {
+                if (isInc) summary.month.income += amt; else summary.month.expense += amt;
+            }
+
+            if (tDate.getTime() >= startOfWeekTime) {
+                if (isInc) summary.week.income += amt; else summary.week.expense += amt;
+            }
+
+            if (tDate.getTime() >= startOfToday) {
+                if (isInc) summary.today.income += amt; else summary.today.expense += amt;
+            }
+        });
+
+        function setRowValues(prefix, data) {
+            const balance = data.income - data.expense;
+            document.getElementById(`${prefix}-income`).innerText = data.income.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById(`${prefix}-expense`).innerText = data.expense.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById(`${prefix}-balance`).innerText = balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        setRowValues('today', summary.today);
+        setRowValues('week', summary.week);
+        setRowValues('month', summary.month);
+        setRowValues('all', summary.all);
     }
 
     function renderCalendar() {
@@ -566,9 +724,9 @@
             transactions.push(newTransaction);
         }
 
-        saveToLocalStorage(); // 💡 เซฟลงเครื่องถาวรทันทีหลังเพิ่ม/แก้ไขรายการ
+        saveToLocalStorage();
         resetForm();
-        updateTopSummary();
+        updateSummaryTable(); 
         renderCalendar();
         renderList();
         alert('บันทึกรายการเรียบร้อยแล้ว!');
@@ -596,8 +754,8 @@
             if (editIdInput.value == id) {
                 resetForm();
             }
-            saveToLocalStorage(); // 💡 เซฟลงเครื่องถาวรทันทีหลังลบรายการ
-            updateTopSummary();
+            saveToLocalStorage();
+            updateSummaryTable(); 
             renderCalendar();
             renderList();
         }
@@ -647,8 +805,8 @@
                 const match = content.match(/DATA_START_(.*?)_DATA_END/);
                 if (match && match[1]) {
                     transactions = JSON.parse(decodeURIComponent(escape(atob(match[1]))));
-                    saveToLocalStorage(); // 💡 เมื่อนำเข้าข้อมูลจากไฟล์ Excel แล้ว ให้สั่งเซฟลงความจำถาวรของเครื่องทันที
-                    updateTopSummary();
+                    saveToLocalStorage();
+                    updateSummaryTable(); 
                     renderCalendar();
                     renderList();
                     alert('นำเข้าข้อมูลสำเร็จแล้ว!');
