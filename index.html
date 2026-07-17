@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบันทึกรายรับ-รายจ่ายปฏิทินอัจฉริยะ</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            min-height: 100vh;
+            padding: 20px 20px 80px 20px;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+        .current-date {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        /* 📊 ตารางสรุปยอดด้านบนสุด */
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #f8fafc;
+        }
+        .summary-table th, .summary-table td {
+            padding: 12px 8px;
+            text-align: center;
+            border: 1px solid #edf2f7;
+        }
+        .summary-table th {
+            color: #4a5568;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        .summary-table td {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .text-income { color: #2e7d32; }
+        .text-expense { color: #c62828; }
+        .text-balance { color: #1a202c; }
+
+        /* 🗓️ สไตล์ปฏิทินอัจฉริยะ */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+        }
+        .calendar-header h3 { 
+            margin: 0; 
+            font-size: 18px; 
+            color: #2d3748; 
+            font-weight: bold;
+        }
+        .btn-nav-month {
+            background: #4a5568;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .btn-nav-month:hover { background: #334155; }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin-bottom: 25px;
+        }
+        .weekday-label {
+            font-weight: bold;
+            font-size: 13px;
+            color: #718096;
+            text-align: center;
+            padding: 5px 0;
+        }
+        .calendar-day {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            min-height: 55px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 4px;
+            cursor: pointer;
+            position: relative;
+            transition: 0.1s;
+        }
+        .calendar-day .day-num {
+            font-size: 12px;
+            font-weight: bold;
+            color: #4a5568;
+            align-self: flex-start;
+        }
+        .calendar-day .day-amounts {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        .calendar-day .day-inc { font-size: 8px; color: #2e7d32; font-weight: bold; }
+        .calendar-day .day-exp { font-size: 8px; color: #c62828; font-weight: bold; }
+        
+        .calendar-day.day-has-income { background-color: #f0fdf4; border-color: #bbf7d0; }
+        .calendar-day.day-has-expense { background-color: #fef2f2; border-color: #fecaca; }
+        .calendar-day.empty { background: transparent; border: none; cursor: default; }
+        .calendar-day.selected { border: 2px solid #3182ce; box-shadow: 0 0 5px rgba(49,130,206,0.3); }
+
+        /* 📜 รายการประวัติรายวัน */
+        .history-section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #edf2f7;
+            padding-bottom: 8px;
+        }
+        .history-card {
+            background: white;
+            border: 1px solid #edf2f7;
+            border-left: 5px solid #ccc;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .card-left .card-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1a202c;
+            margin-bottom: 4px;
+        }
+        .card-left .card-time {
+            font-size: 12px;
+            color: #a0aec0;
+        }
+        .card-right {
+            text-align: right;
+        }
+        .card-amount {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .card-actions {
+            display: flex;
+            gap: 5px;
+            justify-content: flex-end;
+        }
+        .card-actions button {
+            border: none;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-card-edit { background-color: #ebf8ff; color: #2b6cb0; }
+        .btn-card-delete { background-color: #fff5f5; color: #c53030; }
+
+        /* 📝 ฟอร์มกรอกข้อมูล */
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #4a5568; font-size: 14px; font-weight: bold;}
+        input[type="text"], input[type="number"] {
+            width: 100%; padding: 11px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px;
+        }
+        .type-group { display: flex; gap: 10px; }
+        .type-btn { flex: 1; }
+        .type-btn input[type="radio"] { display: none; }
+        .type-btn label {
+            display: block; background: #fff; border: 2px solid #e2e8f0; padding: 12px;
+            text-align: center; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s;
+        }
+        #type-income:checked + label { background-color: #e8f5e9; border-color: #2e7d32; color: #2e7d32; }
+        #type-expense:checked + label { background-color: #ffebee; border-color: #c62828; color: #c62828; }
+
+        .btn-submit { background-color: #4caf50; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; }
+        .btn-cancel { background-color: #a0aec0; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 5px; display: none; }
+        
+        .backup-zone { display: flex; gap: 10px; margin-top: 20px; border-top: 1px dashed #e2e8f0; padding-top: 15px; }
+        .btn-backup, .btn-import-label { flex: 1; padding: 10px; border: 1px dashed #3182ce; background: #ebf8ff; color: #2b6cb0; border-radius: 6px; font-size: 13px; font-weight: bold; text-align: center; cursor: pointer; }
+        #import-file { display: none; }
+
+        /* 📱 แถบเมนูด้านล่างสุด */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 500px;
+            height: 60px;
+            background: white;
+            border-top: 2px solid #edf2f7;
+            display: flex;
+            z-index: 100;
+        }
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+            color: #718096;
+            transition: 0.1s;
+        }
+        .nav-item.active {
+            color: #3182ce;
+            border-top: 3px solid #3182ce;
+            background-color: #f7fafc;
+        }
+
+        .page-content { display: none; }
+        .page-content.active { display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <h2>📝 บัญชีรายรับ-รายจ่าย</h2>
+    <div id="current-date" class="current-date"></div>
+
+    <!-- 📊 ตารางสรุปยอดด้านบนสุด -->
+    <table class="summary-table">
+        <thead>
+            <tr>
+                <th>ทั้งหมด</th>
+                <th class="text-income" id="top-income">0.00</th>
+                <th class="text-expense" id="top-expense">0.00</th>
+                <th id="top-balance">0.00</th>
+            </tr>
+        </thead>
+    </table>
+
+    <!-- ================= หน้าบันทึกรายการ ================= -->
+    <div id="page-form" class="page-content active">
+        <form id="transaction-form">
+            <input type="hidden" id="edit-id">
+            
+            <div class="form-group">
+                <label for="description">ชื่อรายการ</label>
+                <input type="text" id="description" list="items-suggestion" placeholder="เช่น เงินเดือน, ค่าเติมน้ำมัน" required autocomplete="off">
+                
+                <!-- 💡 ลิสรายการแนะนำที่อัปเดตใหม่ -->
+                <datalist id="items-suggestion">
+                    <option value="รายได้วันนี้">
+                    <option value="ค่าน้ำมัน">
+                    <option value="ค่าอาหาร">
+                    <option value="โบนัสแฟน">
+                    <option value="ซ่อมรถ">
+                    <option value="ของใช้">
+                </datalist>
+            </div>
+            
+            <div class="form-group">
+                <label>ประเภท</label>
+                <div class="type-group">
+                    <div class="type-btn">
+                        <input type="radio" id="type-income" name="transaction-type" value="income" checked>
+                        <label for="type-income">รายรับ (+)</label>
+                    </div>
+                    <div class="type-btn">
+                        <input type="radio" id="type-expense" name="transaction-type" value="expense">
+                        <label for="type-expense">รายจ่าย (-)</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">จำนวนเงิน (บาท)</label>
+                <input type="number" id="amount" min="0.01" step="0.01" placeholder="0.00" required>
+            </div>
+
+            <button type="submit" id="btn-submit" class="btn-submit">บันทึกรายการ</button>
+            <button type="button" id="btn-cancel" class="btn-cancel" onclick="resetForm()">ยกเลิกการแก้ไข</button>
+
+            <div class="backup-zone">
+                <button type="button" class="btn-backup" onclick="exportToExcel()">📤 สำรองข้อมูล (.xlsx)</button>
+                <label for="import-file" class="btn-import-label">📥 นำเข้าข้อมูล (.xlsx)</label>
+                <input type="file" id="import-file" accept=".xlsx,.xls" onchange="importFromExcel(event)">
+            </div>
+        </form>
+    </div>
+
+    <!-- ================= หน้าประวัติปฏิทิน ================= -->
+    <div id="page-calendar" class="page-content">
+        <div class="calendar-header">
+            <button class="btn-nav-month" onclick="navigateCalendar(-1)">◀ เดือนก่อน</button>
+            <h3 id="calendar-month-year">กรกฎาคม 2569</h3>
+            <button class="btn-nav-month" onclick="navigateCalendar(1)">เดือนถัดไป ▶</button>
+        </div>
+
+        <div class="calendar-grid" id="calendar-grid">
+            <!-- วันและยอดเงินจะถูกเจนด้วย JS -->
+        </div>
+
+        <div class="history-section-title" id="history-title">
+            📜 รายการประจำวันที่: --/--/----
+        </div>
+        <div id="list-container">
+            <!-- รายการประวัติแบบ Card -->
+        </div>
+    </div>
+
+    <!-- 📱 แถบเมนูด้านล่างสุด -->
+    <div class="bottom-nav">
+        <div class="nav-item active" id="nav-form" onclick="switchPage('form')">📝 บันทึกรายการ</div>
+        <div class="nav-item" id="nav-calendar" onclick="switchPage('calendar')">📜 ประวัติปฏิทิน</div>
+    </div>
+</div>
+
+<script>
+    let transactions = [];
+    let calendarDate = new Date();
+    let selectedDateStr = new Date().toISOString().split('T')[0];
+
+    const form = document.getElementById('transaction-form');
+    const descriptionInput = document.getElementById('description');
+    const amountInput = document.getElementById('amount');
+    const editIdInput = document.getElementById('edit-id');
+    const btnSubmit = document.getElementById('btn-submit');
+    const btnCancel = document.getElementById('btn-cancel');
+    const listContainer = document.getElementById('list-container');
+
+    function init() {
+        displayCurrentDate();
+        updateTopSummary();
+        renderCalendar();
+        renderList();
+    }
+
+    function displayCurrentDate() {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-date').innerText = "วันนี้คือ: " + new Date().toLocaleDateString('th-TH', options);
+    }
+
+    function switchPage(page) {
+        document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        
+        if (page === 'form') {
+            document.getElementById('page-form').classList.add('active');
+            document.getElementById('nav-form').classList.add('active');
+        } else {
+            document.getElementById('page-calendar').classList.add('active');
+            document.getElementById('nav-calendar').classList.add('active');
+        }
+        renderCalendar();
+        renderList();
+    }
+
+    function getSelectedType() {
+        return document.querySelector('input[name="transaction-type"]:checked').value;
+    }
+
+    function setSelectedType(value) {
+        document.querySelector(`input[name="transaction-type"][value="${value}"]`).checked = true;
+    }
+
+    function updateTopSummary() {
+        let income = 0;
+        let expense = 0;
+        transactions.forEach(t => {
+            if (t.type === 'income') income += t.amount;
+            else expense += t.amount;
+        });
+        const balance = income - expense;
+
+        document.getElementById('top-income').innerText = income.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('top-expense').innerText = expense.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('top-balance').innerText = balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendar-grid');
+        const monthYearText = document.getElementById('calendar-month-year');
+        grid.innerHTML = '';
+        
+        const year = calendarDate.getFullYear();
+        const month = calendarDate.getMonth();
+        
+        monthYearText.innerText = calendarDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+
+        const weekdays = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+        weekdays.forEach(w => {
+            const cell = document.createElement('div');
+            cell.classList.add('weekday-label');
+            cell.innerText = w;
+            grid.appendChild(cell);
+        });
+
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const totalDays = new Date(year, month + 1, 0).getDate();
+
+        for (let i = 0; i < firstDayIndex; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.classList.add('calendar-day', 'empty');
+            grid.appendChild(emptyCell);
+        }
+
+        for (let day = 1; day <= totalDays; day++) {
+            const cell = document.createElement('div');
+            cell.classList.add('calendar-day');
+            
+            const currentCellDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            
+            if (selectedDateStr === currentCellDateStr) {
+                cell.classList.add('selected');
+            }
+
+            let dayIncome = 0;
+            let dayExpense = 0;
+            transactions.forEach(t => {
+                if(t.dateString === currentCellDateStr) {
+                    if (t.type === 'income') dayIncome += t.amount;
+                    else dayExpense += t.amount;
+                }
+            });
+
+            if (dayIncome > 0 || dayExpense > 0) {
+                if (dayIncome >= dayExpense) cell.classList.add('day-has-income');
+                else cell.classList.add('day-has-expense');
+            }
+
+            let incomeText = dayIncome > 0 ? `<span class="day-inc">+${Math.round(dayIncome)}</span>` : '';
+            let expenseText = dayExpense > 0 ? `<span class="day-exp">-${Math.round(dayExpense)}</span>` : '';
+
+            cell.innerHTML = `
+                <span class="day-num">${day}</span>
+                <div class="day-amounts">
+                    ${incomeText}
+                    ${expenseText}
+                </div>
+            `;
+
+            cell.onclick = () => {
+                selectedDateStr = currentCellDateStr;
+                renderCalendar();
+                renderList();
+            };
+
+            grid.appendChild(cell);
+        }
+    }
+
+    function navigateCalendar(direction) {
+        calendarDate.setMonth(calendarDate.getMonth() + direction);
+        renderCalendar();
+    }
+
+    function renderList() {
+        listContainer.innerHTML = '';
+        const titleText = document.getElementById('history-title');
+
+        const [y, m, d] = selectedDateStr.split('-');
+        titleText.innerText = `📜 รายการประจำวันที่: ${parseInt(d)}/${parseInt(m)}/${parseInt(y) + 543}`;
+
+        const displayData = transactions.filter(t => t.dateString === selectedDateStr);
+
+        if(displayData.length === 0) {
+            listContainer.innerHTML = '<p style="color:#a0aec0; text-align:center; padding: 20px; font-size:14px;">ไม่มีรายการบันทึกในวันนี้</p>';
+            return;
+        }
+
+        const sortedData = [...displayData].sort((a,b) => b.id - a.id);
+
+        sortedData.forEach(t => {
+            const card = document.createElement('div');
+            card.classList.add('history-card');
+            
+            const isIncome = t.type === 'income';
+            card.style.borderLeftColor = isIncome ? '#2e7d32' : '#c62828';
+            const sign = isIncome ? '+' : '-';
+            const colorClass = isIncome ? 'text-income' : 'text-expense';
+
+            const [year, month, day] = t.dateString.split('-');
+            const thaiDateLabel = `${parseInt(day)}/${parseInt(month)}/${parseInt(year) + 543} ${t.timeString}`;
+
+            card.innerHTML = `
+                <div class="card-left">
+                    <div class="card-name">${t.description}</div>
+                    <div class="card-time">${thaiDateLabel}</div>
+                </div>
+                <div class="card-right">
+                    <div class="card-amount ${colorClass}">${sign}${t.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} บ.</div>
+                    <div class="card-actions">
+                        <button class="btn-card-edit" onclick="editTransaction(${t.id})">แก้ไข</button>
+                        <button class="btn-card-delete" onclick="deleteTransaction(${t.id})">ลบ</button>
+                    </div>
+                </div>
+            `;
+            listContainer.appendChild(card);
+        });
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const id = editIdInput.value;
+        const description = descriptionInput.value;
+        const type = getSelectedType();
+        const amount = parseFloat(amountInput.value);
+        
+        const now = new Date();
+        const timeStr = now.toTimeString().substring(0, 5);
+
+        if (id) {
+            const index = transactions.findIndex(t => t.id == id);
+            if (index !== -1) {
+                transactions[index].description = description;
+                transactions[index].type = type;
+                transactions[index].amount = amount;
+            }
+        } else {
+            const newTransaction = {
+                id: Date.now(),
+                description: description,
+                type: type,
+                amount: amount,
+                dateString: selectedDateStr,
+                timeString: timeStr
+            };
+            transactions.push(newTransaction);
+        }
+
+        resetForm();
+        updateTopSummary();
+        renderCalendar();
+        renderList();
+        alert('บันทึกรายการเรียบร้อยแล้ว!');
+    });
+
+    function editTransaction(id) {
+        const transaction = transactions.find(t => t.id === id);
+        if (transaction) {
+            editIdInput.value = transaction.id;
+            descriptionInput.value = transaction.description;
+            setSelectedType(transaction.type);
+            amountInput.value = transaction.amount;
+
+            btnSubmit.innerText = 'อัปเดตรายการ';
+            btnSubmit.style.backgroundColor = '#ff9800';
+            btnCancel.style.display = 'block';
+            
+            switchPage('form');
+        }
+    }
+
+    function deleteTransaction(id) {
+        if(confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
+            transactions = transactions.filter(t => t.id !== id);
+            if (editIdInput.value == id) {
+                resetForm();
+            }
+            updateTopSummary();
+            renderCalendar();
+            renderList();
+        }
+    }
+
+    function exportToExcel() {
+        if (transactions.length === 0) {
+            alert('ไม่มีข้อมูลสำหรับสำรอง');
+            return;
+        }
+
+        let excelTemplate = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head><meta charset="UTF-8"><!--DATA_START_${btoa(unescape(encodeURIComponent(JSON.stringify(transactions))))}_DATA_END--></head>
+            <body><table border="1">
+                <tr style="background-color: #007bff; color: white; font-weight: bold;">
+                    <th>วันที่</th><th>เวลา</th><th>รายการ</th><th>ประเภท</th><th>จำนวนเงิน (บาท)</th>
+                </tr>
+        `;
+
+        transactions.forEach(t => {
+            const typeText = t.type === 'income' ? 'รายรับ' : 'รายจ่าย';
+            excelTemplate += `<tr><td>${t.dateString}</td><td>${t.timeString}</td><td>${t.description}</td><td>${typeText}</td><td style="text-align: right;">${t.amount.toFixed(2)}</td></tr>`;
+        });
+
+        excelTemplate += `</table></body></html>`;
+
+        const blob = new Blob([excelTemplate], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `บัญชีรายรับรายจ่าย.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function importFromExcel(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const content = e.target.result;
+            try {
+                const match = content.match(/DATA_START_(.*?)_DATA_END/);
+                if (match && match[1]) {
+                    transactions = JSON.parse(decodeURIComponent(escape(atob(match[1]))));
+                    updateTopSummary();
+                    renderCalendar();
+                    renderList();
+                    alert('นำเข้าข้อมูลสำเร็จแล้ว!');
+                } else {
+                    alert('ไฟล์ไม่ถูกต้อง');
+                }
+            } catch (error) {
+                alert('เกิดข้อผิดพลาดในการนำเข้า');
+            }
+            event.target.value = '';
+        };
+        reader.readAsText(file);
+    }
+
+    function resetForm() {
+        form.reset();
+        editIdInput.value = '';
+        setSelectedType('income');
+        btnSubmit.innerText = 'บันทึกรายการ';
+        btnSubmit.style.backgroundColor = '#4caf50';
+        btnCancel.style.display = 'none';
+    }
+
+    init();
+</script>
+
+</body>
+</html>
